@@ -1,11 +1,14 @@
 <script>
   import { onMount } from "svelte";
   import Chart from "chart.js/auto";
+  import Navigation from "./Navigation.svelte";
+  import BossTable from "./BossTable.svelte";
 
   let bosses = [];
   let selectedName = "";
   let chart;
   let canvasEl;
+  let currentPage = "chart";
 
   onMount(async () => {
     const base = import.meta.env.BASE_URL || '/';
@@ -15,8 +18,23 @@
     bosses.sort((a, b) => a.boss_name.localeCompare(b.boss_name));
     selectedName = bosses[0]?.boss_name ?? "";
 
-    initChart();
+    const hash = window.location.hash.slice(1) || "chart";
+    currentPage = hash;
+
+    window.addEventListener("hashchange", () => {
+      currentPage = window.location.hash.slice(1) || "chart";
+      if (currentPage === "chart") {
+        chart = null;
+        setTimeout(() => {
+          if (canvasEl) initChart();
+        }, 100);
+      }
+    });
   });
+
+  $: if (canvasEl && bosses.length > 0 && !chart && currentPage === "chart") {
+    setTimeout(() => initChart(), 50);
+  }
 
   $: if (chart && selectedName) {
     const boss = bosses.find((b) => b.boss_name === selectedName);
@@ -33,6 +51,10 @@
 
   function initChart() {
     if (!canvasEl || bosses.length === 0) return;
+
+    if (chart) {
+      chart.destroy();
+    }
 
     const firstBoss = bosses[0];
     const labels = firstBoss.timeline.map((t) => t.date);
@@ -124,95 +146,103 @@
       <div class="topbar-right">
         <span class="accent-dot"></span>
         <span class="ne-status-pill">
-          <span class="fw-semibold">ONLINE</span>
-          <span class="muted">Boss records synced</span>
+          <span class="fw-semibold">ONLINE // </span>
+          <span class="muted"> Updated : 2025/12/02 </span>
         </span>
       </div>
     </div>
 
     <div class="title-block">
-      <h1 class="main-title">Boss HP Growth Trends</h1>
+      <h1 class="main-title">ZZZ Deadly Assault HP Checker</h1>
       <p class="muted">
-        ดูว่า HP ของแต่ละบอสเติบโตยังไงตั้งแต่เปิดตัวจนถึงรอบกิจกรรมล่าสุด
+        เว็บไซต์สำหรับเช็คเทรนด์เลือดของบอสต่างๆในโหมด Deadly Assault ของเกม Zenless Zone Zero เพื่อแสดงให้เห็นว่าทำไมบอสถึงถึกหนังหมาได้ขนาดนั้น
       </p>
     </div>
 
-    <!-- Selector + stats -->
-    <div class="card-ne mb-4">
-      <div class="selector-row">
-        <div class="selector-col">
-          <label for="bossSelect" class="selector-label muted">เลือกบอส</label>
-          <select
-            id="bossSelect"
-            bind:value={selectedName}
-          >
-            {#each bosses as b}
-              <option value={b.boss_name}>{b.boss_name}</option>
-            {/each}
-          </select>
-        </div>
+    <Navigation {currentPage} />
 
-        <div class="stats-col">
-          {#if stats}
-            <div class="stats-bar">
-              <div class="stat-pill">
-                <span class="stat-label">ครั้งแรก</span>
-                <span class="stat-value">{stats.first.toLocaleString()}</span>
-              </div>
-              <div class="stat-pill">
-                <span class="stat-label">ล่าสุด</span>
-                <span class="stat-value">{stats.last.toLocaleString()}</span>
-              </div>
-              <div class="stat-pill">
-                <span class="stat-label">สูงสุด</span>
-                <span class="stat-value">{stats.max.toLocaleString()}</span>
-              </div>
-              <div class="stat-pill">
-                <span class="stat-label">ต่ำสุด</span>
-                <span class="stat-value">{stats.min.toLocaleString()}</span>
-              </div>
-              <div class="stat-pill">
-                <span class="stat-label">Δ จากครั้งแรก</span>
-                <span class="stat-value">
-                  {stats.diff >= 0 ? "+" : ""}{stats.diff.toLocaleString()}
-                  {" "}
-                  ({stats.diff >= 0 ? "+" : ""}{stats.pct}%)
-                </span>
-              </div>
-              <div class="stat-pill">
-                <span class="stat-label">จำนวนรอบ</span>
-                <span class="stat-value">{stats.runs}</span>
-              </div>
-            </div>
-          {/if}
-        </div>
-      </div>
-    </div>
+    {#if currentPage === "chart"}
+      <!-- Selector + stats -->
+      <div class="card-ne mb-4">
+        <div class="selector-row">
+          <div class="selector-col">
+            <label for="bossSelect" class="selector-label muted">เลือกบอส</label>
+            <select
+              id="bossSelect"
+              bind:value={selectedName}
+            >
+              {#each bosses as b}
+                <option value={b.boss_name}>{b.boss_name}</option>
+              {/each}
+            </select>
+          </div>
 
-    <!-- Chart card -->
-    <div class="card-ne">
-      <div class="chart-header">
-        <div>
-          <div class="badge-phase" id="chartSubtitle">
+          <div class="stats-col">
             {#if stats}
-              HP Timeline · {stats.runs} runs
-            {:else}
-              HP Timeline
+              <div class="stats-bar">
+                <div class="stat-pill">
+                  <span class="stat-label">ครั้งแรก</span>
+                  <span class="stat-value">{stats.first.toLocaleString()}</span>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-label">ล่าสุด</span>
+                  <span class="stat-value">{stats.last.toLocaleString()}</span>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-label">สูงสุด</span>
+                  <span class="stat-value">{stats.max.toLocaleString()}</span>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-label">ต่ำสุด</span>
+                  <span class="stat-value">{stats.min.toLocaleString()}</span>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-label">Δ จากครั้งแรก</span>
+                  <span class="stat-value" class:positive={stats.diff >= 0} class:negative={stats.diff < 0}>
+                    {stats.diff >= 0 ? "+" : ""}{stats.diff.toLocaleString()}
+                    {" "}
+                    ({stats.diff >= 0 ? "+" : ""}{stats.pct}%)
+                  </span>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-label">จำนวนรอบ</span>
+                  <span class="stat-value">{stats.runs}</span>
+                </div>
+              </div>
             {/if}
           </div>
-          <h5 class="chart-title">
-            {stats ? stats.boss.boss_name : "Boss HP Timeline"}
-          </h5>
-        </div>
-        <div class="chart-note muted">
-          หนึ่งจุด = HP ของบอสในกิจกรรมแต่ละรอบ
         </div>
       </div>
 
-      <div class="chart-shell">
-        <canvas bind:this={canvasEl}></canvas>
-      </div>
-    </div>
+      <!-- Chart card -->
+      {#key currentPage}
+        <div class="card-ne">
+          <div class="chart-header">
+            <div>
+              <div class="badge-phase" id="chartSubtitle">
+                {#if stats}
+                  HP Timeline · {stats.runs} runs
+                {:else}
+                  HP Timeline
+                {/if}
+              </div>
+              <h5 class="chart-title">
+                {stats ? stats.boss.boss_name : "Boss HP Timeline"}
+              </h5>
+            </div>
+            <div class="chart-note muted">
+              หนึ่งจุด = HP ของบอสในกิจกรรมแต่ละรอบ
+            </div>
+          </div>
+
+          <div class="chart-shell">
+            <canvas bind:this={canvasEl}></canvas>
+          </div>
+        </div>
+      {/key}
+    {:else if currentPage === "table"}
+      <BossTable {bosses} />
+    {/if}
 
   </div>
 </div>
@@ -382,14 +412,22 @@
   }
 
   .stat-label {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     color: #9ca3af;
   }
 
   .stat-value {
-    font-size: 0.95rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: #f9fafb;
+  }
+
+  .stat-value.positive {
+    color: #22c55e;
+  }
+
+  .stat-value.negative {
+    color: #ef4444;
   }
 
   .chart-header {
