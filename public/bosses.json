@@ -371,6 +371,7 @@
   },
   {
     "boss_name": "The Defiler",
+    "image": "boss-images/The_Defiler.webp",
     "timeline": [
       {
         "date": "2025-09-05",

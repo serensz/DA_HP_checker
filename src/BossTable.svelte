@@ -28,6 +28,9 @@
       case "runs":
         compareValue = aStats.runs - bStats.runs;
         break;
+      case "days":
+        compareValue = aStats.daysPassed - bStats.daysPassed;
+        break;
     }
 
     return sortOrder === "asc" ? compareValue : -compareValue;
@@ -35,7 +38,7 @@
 
   function getBossStats(boss) {
     if (!boss.timeline || boss.timeline.length === 0) {
-      return { first: 0, last: 0, max: 0, min: 0, diff: 0, pct: 0, runs: 0 };
+      return { first: 0, last: 0, max: 0, min: 0, diff: 0, pct: 0, runs: 0, lastDate: "", daysPassed: 0 };
     }
 
     const hp = boss.timeline.map((t) => t.hp);
@@ -45,7 +48,24 @@
     const min = Math.min(...hp);
     const diff = last - first;
     const pct = first ? parseFloat(((diff / first) * 100).toFixed(1)) : 0;
-    return { first, last, max, min, diff, pct, runs: boss.timeline.length };
+
+    // คำนวณจำนวนวันที่ผ่านไป
+    const lastDateObj = new Date(boss.timeline[boss.timeline.length - 1].date);
+    const todayObj = new Date();
+    // @ts-ignore
+    const daysPassed = Math.floor((todayObj - lastDateObj) / (1000 * 60 * 60 * 24));
+
+    return {
+      first,
+      last,
+      max,
+      min,
+      diff,
+      pct,
+      runs: boss.timeline.length,
+      lastDate: lastDateObj.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }),
+      daysPassed
+    };
   }
 
   function toggleSort(column) {
@@ -55,6 +75,17 @@
       sortBy = column;
       sortOrder = "desc";
     }
+  }
+
+  // Helper function to get boss image path
+  function getBossImage(boss) {
+    const base = import.meta.env.BASE_URL || '/';
+    return boss?.image ? `${base}${boss.image}` : null;
+  }
+
+  // Fallback image ถ้าโหลดไม่ได้
+  function handleImageError(e) {
+    e.target.style.display = 'none';
   }
 </script>
 
@@ -87,13 +118,29 @@
             <th on:click={() => toggleSort("runs")} class:active={sortBy === "runs"}>
               จำนวนรอบ {sortBy === "runs" ? (sortOrder === "asc" ? "↑" : "↓") : ""}
             </th>
+            <th on:click={() => toggleSort("days")} class:active={sortBy === "days"}>
+              มาครั้งสุดท้าย {sortBy === "days" ? (sortOrder === "asc" ? "↑" : "↓") : ""}
+            </th>
           </tr>
         </thead>
         <tbody>
           {#each sortedBosses as boss}
             {@const stats = getBossStats(boss)}
             <tr>
-              <td class="boss-name">{boss.boss_name}</td>
+              <td class="boss-name">
+                <div class="boss-info">
+                  {#if getBossImage(boss)}
+                    <img 
+                      src={getBossImage(boss)} 
+                      alt={boss.boss_name}
+                      class="boss-avatar"
+                      on:error={handleImageError}
+                      loading="lazy"
+                    />
+                  {/if}
+                  <span>{boss.boss_name}</span>
+                </div>
+              </td>
               <td>{stats.first.toLocaleString()}</td>
               <td>{stats.last.toLocaleString()}</td>
               <td>{stats.max.toLocaleString()}</td>
@@ -101,6 +148,12 @@
                 {stats.pct >= 0 ? "+" : ""}{stats.pct}%
               </td>
               <td>{stats.runs}</td>
+              <td class="text-center">
+                <div class="days-ago">
+                  <span class="days-value">{stats.daysPassed} วัน</span>
+                  <span class="date-value">{stats.lastDate}</span>
+                </div>
+              </td>
             </tr>
           {/each}
         </tbody>
@@ -184,6 +237,21 @@
     color: #facc15;
   }
 
+  .boss-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .boss-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid rgba(250, 204, 21, 0.4);
+    flex-shrink: 0;
+  }
+
   .positive {
     color: #22c55e;
     font-weight: 600;
@@ -192,6 +260,22 @@
   .negative {
     color: #ef4444;
     font-weight: 600;
+  }
+
+  .days-ago {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .days-value {
+    font-weight: 600;
+    color: #facc15;
+  }
+
+  .date-value {
+    font-size: 0.75rem;
+    color: #6b7280;
   }
 
   @media (max-width: 768px) {
@@ -206,6 +290,11 @@
 
     .table-header h2 {
       font-size: 1.2rem;
+    }
+
+    .boss-avatar {
+      width: 32px;
+      height: 32px;
     }
   }
 </style>

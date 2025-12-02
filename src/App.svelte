@@ -122,8 +122,34 @@
     const diff = last - first;
     const pct = first ? ((diff / first) * 100).toFixed(1) : "0.0";
 
-    return { boss, first, last, max, min, diff, pct, runs: boss.timeline.length };
+    // คำนวณจำนวนวันที่ผ่านไปจากครั้งสุดท้าย
+    const lastDate = new Date(boss.timeline[boss.timeline.length - 1].date);
+    const today = new Date();
+    // @ts-ignore
+    const daysPassed = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+
+    return { 
+      boss, 
+      first, 
+      last, 
+      max, 
+      min, 
+      diff, 
+      pct, 
+      runs: boss.timeline.length,
+      lastDate: lastDate.toLocaleDateString('th-TH'),
+      daysPassed
+    };
   })();
+
+  function getBossImage(boss) {
+    const base = import.meta.env.BASE_URL || '/';
+    return boss?.image ? `${base}${boss.image}` : null;
+  }
+
+  function handleImageError(e) {
+    e.target.style.display = 'none';
+  }
 </script>
 
 <svelte:head>
@@ -146,7 +172,8 @@
       <div class="topbar-right">
         <span class="accent-dot"></span>
         <span class="ne-status-pill">
-          <span class="fw-semibold">ONLINE // </span>
+          <span class="fw-semibold status-online">ONLINE</span>
+          <span class="status-divider">//</span>
           <span class="muted"> Updated : 2025/12/02 </span>
         </span>
         <div class="social-links">
@@ -180,89 +207,128 @@
 
     {#if currentPage === "chart"}
       <!-- Selector + stats -->
-      <div class="card-ne mb-4">
-        <div class="selector-row">
-          <div class="selector-col">
-            <label for="bossSelect" class="selector-label muted">เลือกบอส</label>
-            <select
-              id="bossSelect"
-              bind:value={selectedName}
-            >
-              {#each bosses as b}
-                <option value={b.boss_name}>{b.boss_name}</option>
-              {/each}
-            </select>
-          </div>
-
-          <div class="stats-col">
-            {#if stats}
-              <div class="stats-bar">
-                <div class="stat-pill">
-                  <span class="stat-label">ครั้งแรก</span>
-                  <span class="stat-value">{stats.first.toLocaleString()}</span>
-                </div>
-                <div class="stat-pill">
-                  <span class="stat-label">ล่าสุด</span>
-                  <span class="stat-value">{stats.last.toLocaleString()}</span>
-                </div>
-                <div class="stat-pill">
-                  <span class="stat-label">จำนวนรอบ</span>
-                  <span class="stat-value">{stats.runs}</span>
-                </div>
-                <div class="stat-pill">
-                  <span class="stat-label">สูงสุด</span>
-                  <span class="stat-value">{stats.max.toLocaleString()}</span>
-                </div>
-                <div class="stat-pill">
-                  <span class="stat-label">ต่ำสุด</span>
-                  <span class="stat-value">{stats.min.toLocaleString()}</span>
-                </div>
-                <div class="stat-pill">
-                  <span class="stat-label">Δ จากครั้งแรก</span>
-                  <span class="stat-value" class:positive={stats.diff >= 0} class:negative={stats.diff < 0}>
-                    {stats.diff >= 0 ? "+" : ""}{stats.diff.toLocaleString()}
-                    {" "}
-                    ({stats.diff >= 0 ? "+" : ""}{stats.pct}%)
-                  </span>
-                </div>
+      <div class="content-with-image">
+        <div class="main-content">
+          <div class="card-ne mb-4">
+            <div class="selector-row">
+              <div class="selector-col">
+                <label for="bossSelect" class="selector-label muted">เลือกบอส</label>
+                <select
+                  id="bossSelect"
+                  bind:value={selectedName}
+                >
+                  {#each bosses as b}
+                    <option value={b.boss_name}>{b.boss_name}</option>
+                  {/each}
+                </select>
               </div>
-            {/if}
-          </div>
-        </div>
-      </div>
 
-      <!-- Chart card -->
-      {#key currentPage}
-        <div class="card-ne">
-          <div class="chart-header">
-            <div>
-              <div class="badge-phase" id="chartSubtitle">
+              <div class="stats-col">
                 {#if stats}
-                  HP Timeline · {stats.runs} runs
-                {:else}
-                  HP Timeline
+                  <div class="stats-bar">
+                    <div class="stat-pill stat-first">
+                      <span class="stat-label">ครั้งแรก</span>
+                      <span class="stat-value">{stats.first.toLocaleString()}</span>
+                    </div>
+                    <div class="stat-pill stat-last">
+                      <span class="stat-label">ล่าสุด</span>
+                      <span class="stat-value">{stats.last.toLocaleString()}</span>
+                    </div>
+                    <div class="stat-pill stat-runs">
+                      <span class="stat-label">จำนวนรอบ</span>
+                      <span class="stat-value">{stats.runs}</span>
+                    </div>
+                    <div class="stat-pill stat-max">
+                      <span class="stat-label">สูงสุด</span>
+                      <span class="stat-value">{stats.max.toLocaleString()}</span>
+                    </div>
+                    <div class="stat-pill stat-min">
+                      <span class="stat-label">ต่ำสุด</span>
+                      <span class="stat-value">{stats.min.toLocaleString()}</span>
+                    </div>
+                    <div class="stat-pill stat-delta">
+                      <span class="stat-label">Δ จากครั้งแรก</span>
+                      <span class="stat-value" class:positive={stats.diff >= 0} class:negative={stats.diff < 0}>
+                        {stats.diff >= 0 ? "+" : ""}{stats.diff.toLocaleString()}
+                        {" "}
+                        ({stats.diff >= 0 ? "+" : ""}{stats.pct}%)
+                      </span>
+                    </div>
+                    <div class="stat-pill stat-pill-full stat-days">
+                      <span class="stat-label">มาครั้งสุดท้าย</span>
+                      <span class="stat-value">{stats.daysPassed} วันที่แล้ว</span>
+                      <span class="stat-date">({stats.lastDate})</span>
+                    </div>
+                  </div>
                 {/if}
               </div>
-              <h5 class="chart-title">
-                {stats ? stats.boss.boss_name : "Boss HP Timeline"}
-              </h5>
-            </div>
-            <div class="chart-note muted">
-              หนึ่งจุด = HP ของบอสในกิจกรรมแต่ละรอบ
             </div>
           </div>
 
-          <div class="chart-shell">
-            <canvas bind:this={canvasEl}></canvas>
-          </div>
+          <!-- Chart card -->
+          {#key currentPage}
+            <div class="card-ne">
+              <div class="chart-header">
+                <div class="chart-header-left">
+                  {#if stats && getBossImage(stats.boss)}
+                    <img 
+                      src={getBossImage(stats.boss)} 
+                      alt={stats.boss.boss_name}
+                      class="boss-header-image"
+                      on:error={handleImageError}
+                      loading="lazy"
+                    />
+                  {/if}
+                  <div>
+                    <div class="badge-phase">
+                      {#if stats}
+                        HP Timeline · {stats.runs} runs
+                      {:else}
+                        HP Timeline
+                      {/if}
+                    </div>
+                    <h5 class="chart-title">
+                      {stats ? stats.boss.boss_name : "Boss HP Timeline"}
+                    </h5>
+                  </div>
+                </div>
+                <div class="chart-note muted">
+                  หนึ่งจุด = HP ของบอสในกิจกรรมแต่ละรอบ
+                </div>
+              </div>
+
+              <div class="chart-shell">
+                <canvas bind:this={canvasEl}></canvas>
+              </div>
+            </div>
+          {/key}
         </div>
-      {/key}
+
+        <!-- Boss Image Sidebar -->
+        {#if stats && getBossImage(stats.boss)}
+          <div class="boss-sidebar">
+            <div class="boss-image-wrapper">
+              <img 
+                src={getBossImage(stats.boss)} 
+                alt={stats.boss.boss_name}
+                class="boss-large-image"
+                on:error={handleImageError}
+                loading="lazy"
+              />
+              <div class="boss-name-overlay">
+                {stats.boss.boss_name}
+              </div>
+            </div>
+          </div>
+        {/if}
+      </div>
     {:else if currentPage === "table"}
       <BossTable {bosses} />
     {/if}
 
     <footer class="footer">
       <p>Developed by Hikari <span class="heart">♥</span></p>
+      <p class="footer-credit">Burnice GIF credit: <a href="https://x.com/KW7MD8FEWT7lMXx" target="_blank" rel="noopener noreferrer">SuperAppleMan🍎</a> (x)</p>
     </footer>
 
   </div>
@@ -293,6 +359,7 @@
     max-width: 1100px;
   }
 
+  /* Top Bar */
   .ne-topbar {
     background: #000;
     border-radius: 14px;
@@ -330,7 +397,7 @@
   .accent-dot {
     width: 7px;
     height: 7px;
-    border-radius: 999px;
+    border-radius: 50%;
     background: #ff7b22;
     box-shadow: 0 0 8px #ff9100;
   }
@@ -339,176 +406,25 @@
     font-size: 0.8rem;
     border-radius: 999px;
     padding: 4px 10px;
-    background: linear-gradient(
-      90deg,
-      rgba(255, 123, 34, 0.2),
-      rgba(250, 204, 21, 0.2)
-    );
+    background: linear-gradient(90deg, rgba(255, 123, 34, 0.2), rgba(250, 204, 21, 0.2));
     border: 1px solid rgba(255,255,255,0.14);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-  }
-
-  .muted {
-    color: #9ca3af;
-  }
-
-  .title-block {
-    text-align: center;
-    margin-bottom: 24px;
-  }
-
-  .main-title {
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    margin: 0 0 6px;
-    color: #facc15;
-    font-size: 2rem;
-  }
-
-  .card-ne {
-    background: #101318;
-    border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow:
-      0 22px 45px rgba(0, 0, 0, 0.85),
-      0 0 0 1px rgba(148, 163, 184, 0.18);
-    padding: 18px 18px 20px;
-  }
-
-  .selector-row {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .selector-col {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .selector-label {
-    font-size: 0.9rem;
-  }
-
-  select {
-    background: #050816;
-    color: #f9fafb;
-    border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.55);
-    padding: 8px 14px;
-    font-size: 1rem;
-    outline: none;
-  }
-
-  select:focus {
-    border-color: #ff7b22;
-    box-shadow: 0 0 0 2px rgba(255, 123, 34, 0.35);
-  }
-
-  .stats-col {
-    width: 100%;
-  }
-
-  .stats-bar {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
-
-  .stat-pill {
-    background: rgba(15, 23, 42, 0.9);
-    padding: 12px 16px;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
     gap: 4px;
-    border: 1px solid rgba(148, 163, 184, 0.4);
-    box-shadow: 0 0 0 1px rgba(15,23,42,0.9);
-    transition: all 0.2s;
   }
 
-  .stat-pill:hover {
-    background: rgba(15, 23, 42, 1);
-    border-color: rgba(255, 123, 34, 0.5);
-    transform: translateY(-2px);
-  }
-
-  .stat-label {
-    font-size: 0.85rem;
-    color: #9ca3af;
-    font-weight: 500;
-  }
-
-  .stat-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #facc15;
-    text-shadow: 0 0 10px rgba(250, 204, 21, 0.3);
-    line-height: 1.2;
-  }
-
-  .stat-value.positive {
+  .status-online {
     color: #22c55e;
-    text-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+    font-weight: 700;
   }
 
-  .stat-value.negative {
-    color: #ef4444;
-    text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
-  }
-
-  .chart-header {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 10px;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-
-  .badge-phase {
-    background: rgba(15, 23, 42, 0.9);
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.16);
-    font-size: 0.8rem;
-    padding: 4px 10px;
-    display: inline-block;
-    margin-bottom: 4px;
-  }
-
-  .chart-title {
-    margin: 0;
-    font-size: 1.3rem;
-  }
-
-  .chart-note {
-    font-size: 0.9rem;
-  }
-
-  .chart-shell {
-    background:
-      radial-gradient(circle at top, rgba(255,123,34,0.22), transparent 60%),
-      #020617;
-    border-radius: 16px;
-    padding: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.4);
-  }
-
-  canvas {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 520px;
+  .status-divider {
+    color: #6b7280;
   }
 
   .social-links {
     display: flex;
     gap: 6px;
-    align-items: center;
   }
 
   .social-link {
@@ -532,6 +448,204 @@
     transform: translateY(-2px);
   }
 
+  /* Title Block */
+  .title-block {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .main-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    margin: 0 0 6px;
+    color: #facc15;
+    font-size: 2rem;
+  }
+
+  .muted {
+    color: #9ca3af;
+  }
+
+  /* Burnice Section */
+  .burnice-section {
+    margin: 0 auto 24px;
+    max-width: 120px;
+    opacity: 0.7;
+  }
+
+  .burnice-video {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+  }
+
+  /* Card */
+  .card-ne {
+    background: #101318;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 22px 45px rgba(0, 0, 0, 0.85);
+    padding: 18px 18px 20px;
+    margin-bottom: 16px;
+  }
+
+  /* Selector */
+  .selector-row {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .selector-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .selector-label {
+    font-size: 0.9rem;
+  }
+
+  select {
+    background: #050816;
+    color: #f9fafb;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.55);
+    padding: 8px 14px;
+    font-size: 1rem;
+    outline: none;
+    cursor: pointer;
+  }
+
+  select:focus {
+    border-color: #ff7b22;
+    box-shadow: 0 0 0 2px rgba(255, 123, 34, 0.35);
+  }
+
+  /* Stats */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .stat-pill {
+    padding: 14px 18px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: all 0.2s;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+  }
+
+  .stat-pill:hover {
+    transform: translateY(-2px);
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(148, 163, 184, 0.5);
+  }
+
+  /* เน้นสีเฉพาะ value ตัวสำคัญ */
+  .stat-first .stat-value { color: #93c5fd; }
+  .stat-last .stat-value { color: #c4b5fd; }
+  .stat-runs .stat-value { color: #fcd34d; }
+  .stat-max .stat-value { color: #fca5a5; }
+  .stat-min .stat-value { color: #86efac; }
+  .stat-delta .stat-value { color: #fdba74; }
+  .stat-days .stat-value { color: #c4b5fd; }
+
+  .stat-pill-full {
+    grid-column: 1 / -1;
+    text-align: center;
+    align-items: center;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: #d1d5db;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #facc15;
+    line-height: 1.2;
+  }
+
+  .stat-value.positive { color: #22c55e; }
+  .stat-value.negative { color: #ef4444; }
+
+  .stat-date {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+
+  /* Chart */
+  .chart-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .chart-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .boss-header-image {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 2px solid rgba(250, 204, 21, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  .badge-phase {
+    background: rgba(15, 23, 42, 0.9);
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.16);
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+
+  .chart-title {
+    margin: 0;
+    font-size: 1.3rem;
+  }
+
+  .chart-note {
+    font-size: 0.9rem;
+  }
+
+  .chart-shell {
+    background: radial-gradient(circle at top, rgba(255,123,34,0.22), transparent 60%), #020617;
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+  }
+
+  canvas {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 520px;
+  }
+
+  /* Footer */
   .footer {
     margin-top: 40px;
     padding: 20px 0;
@@ -540,9 +654,28 @@
   }
 
   .footer p {
-    margin: 0;
+    margin: 0 0 8px 0;
     font-size: 0.9rem;
     color: #9ca3af;
+  }
+
+  .footer p:last-child {
+    margin-bottom: 0;
+  }
+
+  .footer-credit {
+    font-size: 0.75rem !important;
+    color: #6b7280 !important;
+  }
+
+  .footer-credit a {
+    color: #9ca3af;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-credit a:hover {
+    color: #ff7b22;
   }
 
   .heart {
@@ -555,6 +688,68 @@
     0%, 100% { transform: scale(1); }
     10%, 30% { transform: scale(1.1); }
     20%, 40% { transform: scale(1); }
+  }
+
+  /* Content Layout with Sidebar */
+  .content-with-image {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  .main-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .boss-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 24px;
+  }
+
+  .boss-image-wrapper {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(250, 204, 21, 0.5);
+  }
+
+  .boss-large-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+  }
+
+  .boss-name-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+    padding: 16px 12px 12px;
+    color: #facc15;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .content-with-image {
+      flex-direction: column;
+    }
+
+    .boss-sidebar {
+      width: 100%;
+      position: static;
+      max-width: 400px;
+      margin: 0 auto;
+    }
   }
 
   @media (max-width: 768px) {
@@ -571,18 +766,25 @@
       grid-template-columns: repeat(2, 1fr);
       gap: 10px;
     }
-    .selector-row {
-      gap: 16px;
-    }
     .stat-pill {
-      padding: 10px 12px;
+      padding: 12px 14px;
+    }
+    .stat-label {
+      font-size: 0.8rem;
     }
     .stat-value {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
     }
     .burnice-section {
       max-width: 100px;
-      margin-bottom: 20px;
+    }
+    .boss-header-image {
+      width: 48px;
+      height: 48px;
+    }
+
+    .boss-sidebar {
+      max-width: 300px;
     }
   }
 
@@ -590,20 +792,8 @@
     .stats-bar {
       grid-template-columns: 1fr;
     }
-  }
-
-  .burnice-section {
-    margin-bottom: 24px;
-    max-width: 120px;
-    margin-left: auto;
-    margin-right: auto;
-    opacity: 0.7;
-  }
-
-  .burnice-video {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: 8px;
+    .stat-value {
+      font-size: 1.05rem;
+    }
   }
 </style>
