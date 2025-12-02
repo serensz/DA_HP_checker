@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]  # หรือ master ถ้าพี่ใช้ master
+    branches: [ master ]
   workflow_dispatch:
 
 permissions:
