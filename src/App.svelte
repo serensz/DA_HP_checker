@@ -6,19 +6,25 @@
   let selectedName = "";
   let chart;
   let canvasEl;
+  let errorMsg = "";
 
-  // โหลดข้อมูล bosses.json ด้วย path ที่รองรับทั้ง dev และ GitHub Pages
   onMount(async () => {
-    const base = import.meta.env.BASE_URL;       // <-- จุดสำคัญ
-    const url = `${base}bosses.json`;
+    try {
+      const base = import.meta.env.BASE_URL || '/';
+      const res = await fetch(`${base}bosses.json`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      bosses = await res.json();
 
-    const res = await fetch(url);
-    bosses = await res.json();
+      bosses.sort((a, b) => a.boss_name.localeCompare(b.boss_name));
+      selectedName = bosses[0]?.boss_name ?? "";
 
-    bosses.sort((a, b) => a.boss_name.localeCompare(b.boss_name));
-    selectedName = bosses[0]?.boss_name ?? "";
-
-    initChart();
+      initChart();
+    } catch (error) {
+      console.error("Error loading bosses.json:", error);
+      errorMsg = `Failed to load data: ${error.message}`;
+    }
   });
 
   // สร้างกราฟ
@@ -102,21 +108,37 @@
     padding: 1rem;
     height: 420px;
   }
+
+  .error {
+    color: #ff4444;
+    padding: 1rem;
+    background: #2a1515;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
 </style>
 
 <div class="container">
   <h1 class="title">ZZZ Boss HP Growth Trends</h1>
 
-  <label>
-    เลือกบอส:
-    <select bind:value={selectedName}>
-      {#each bosses as b}
-        <option value={b.boss_name}>{b.boss_name}</option>
-      {/each}
-    </select>
-  </label>
+  {#if errorMsg}
+    <div class="error">{errorMsg}</div>
+  {/if}
 
-  <div class="chart-box">
-    <canvas bind:this={canvasEl}></canvas>
-  </div>
+  {#if bosses.length > 0}
+    <label>
+      เลือกบอส:
+      <select bind:value={selectedName}>
+        {#each bosses as b}
+          <option value={b.boss_name}>{b.boss_name}</option>
+        {/each}
+      </select>
+    </label>
+
+    <div class="chart-box">
+      <canvas bind:this={canvasEl}></canvas>
+    </div>
+  {:else if !errorMsg}
+    <p>Loading...</p>
+  {/if}
 </div>
